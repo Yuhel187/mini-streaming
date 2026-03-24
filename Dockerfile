@@ -1,23 +1,26 @@
-# Use the official Node.js image as the base image
-FROM node:20
-
-# Set the working directory inside the container
+# Base stage
+FROM node:20 AS base
 WORKDIR /usr/src/app
-
-# Copy package.json and package-lock.json to the working directory
 COPY package*.json ./
 
-# Install the application dependencies
+# Development stage
+FROM base AS development
 RUN npm install
-
-# Copy the rest of the application files
 COPY . .
+CMD ["npm", "run", "start:dev"]
 
-# Build the NestJS application
+# Build stage
+FROM base AS build
+RUN npm install
+COPY . .
 RUN npm run build
 
-# Expose the application port
-EXPOSE 3000
+# Production stage
+FROM node:20-alpine AS production
+WORKDIR /usr/src/app
+COPY --from=build /usr/src/app/dist ./dist
+COPY --from=build /usr/src/app/node_modules ./node_modules
+COPY --from=build /usr/src/app/package.json ./package.json
 
-# Command to run the application
+EXPOSE 3000
 CMD ["node", "dist/main"]
